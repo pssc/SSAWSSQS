@@ -1,2 +1,2 @@
 # SSAWSSQS
-Logitech/SlimServer Communication via Amazon Simple Queue Service
+Logitech/SlimServer Plugin for Communication via Amazon Simple Queue Service

@@ -1,0 +1,22 @@
+<?xml version='1.0' standalone='yes'?>
+<extension>
+  <id>e2497278-7d29-4651-bb96-42bbd857d515</id>
+  <name>PLUGIN_SSAWSSQS</name>
+  <module>Plugins::SSAWSSQS::Plugin</module>
+  <version>1.0</version>
+  <description>PLUGIN_SSAWSSQS_SHORT_DESC</description>
+  <creator>pssc</creator>
+  <email>phillip.camp+plugin@google.com</email>
+
+  <defaultState>enabled</defaultState>
+
+  <homepageURL>http://github.com/pssc/SSAWDSQS/</homepageURL>
+  <optionsURL>plugins/SSAWSSQS/settings/basic.html</optionsURL>
+  <type>2</type>
+
+  <targetApplication>
+    <id>SlimServer</id>
+    <maxVersion>*</maxVersion>
+    <minVersion>7.6</minVersion>
+  </targetApplication>
+</extension>

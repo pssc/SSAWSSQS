@@ -1,0 +1,25 @@
+[% PROCESS settings/header.html %]
+[% WRAPPER settingSection %]
+	[% WRAPPER settingGroup title="PLUGIN_SSAWSSQS" %]
+		<div class="groupDesc">[% "PLUGIN_SSAWSSQS_LONG_DESC" | string %]</div>
+	[% END %]
+[% END %]
+	
+[% IF prefs %]
+	[% WRAPPER settingSection title ="PLUGIN_SSAWSSQS_PREF_MANUAL" desc="PLUGIN_SSAWSSQS_PREF_MANUAL" %]
+		[%- FOREACH thispref = prefs -%]
+			[% USE String (thispref.key) %]
+        		[% uk = String.upper %]
+			[%- NEXT IF NOT thispref.key.match('pref_manual_') -%]
+			[% WRAPPER settingGroup title="PLUGIN_SSAWSSQS_" _ uk desc="PLUGIN_SSAWSSQS_" _ uk _ "_HELP" %]
+				[% IF thispref.key.match('awss') %]
+				 <input type="password" class="stdedit" name="[% thispref.key %]" id="[% thispref.key %]" value="[% thispref.value %]" size="64">
+
+				[% ELSE %]
+				 <input type="text" class="stdedit" name="[% thispref.key %]" id="[% thispref.key %]" value="[% thispref.value %]" size="64">
+				[% END %]
+			[% END %]
+		[%- END %]
+	[% END %]
+[% END %]
+[% PROCESS settings/footer.html %]

@@ -1,0 +1,32 @@
+PLUGIN_SSAWSSQS
+	EN	AWS SQS Link
+
+PLUGIN_SSAWSSQS_SHORT_DESC
+	EN	AWS Simple Queue Service Commutnications
+
+PLUGIN_SSAWSSQS_LONG_DESC
+	EN	Use Amazon Web Services Simple Queue Service for communcations to and from the cloud.
+
+PLUGIN_SSAWSSQS_PREF_MANUAL_RECV
+	EN	Recive Queue URL
+
+PLUGIN_SSAWSSQS_PREF_MANUAL_RECV_HELP
+	EN	FIFO queue with delete message and recive perms
+
+PLUGIN_SSAWSSQS_PREF_MANUAL_SEND
+	EN	Send Queue URL
+
+PLUGIN_SSAWSSQS_PREF_MANUAL_SEND_HELP
+	EN	FIFO queue with send perms
+
+PLUGIN_SSAWSSQS_PREF_MANUAL_AWSS
+	EN	AWS Secret Key
+
+PLUGIN_SSAWSSQS_PREF_MANUAL_AWSS_HELP
+	EN	Your AWS Secret for the given AWS Acess Key 
+
+PLUGIN_SSAWSSQS_PREF_MANUAL_AWSA
+	EN	AWS Access Key ID
+
+PLUGIN_SSAWSSQS_PREF_MANUAL_AWSA_HELP
+	EN	Your AWS Access Key ID for Queues with permisions detailed

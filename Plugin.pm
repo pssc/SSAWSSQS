@@ -50,8 +50,7 @@ sub initPlugin {
 	# Plugin setup called after other plugins setup and ready we need cli up
 	Slim::Utils::Timers::setTimer($class, Time::HiRes::time(), \&setup);
 
-	#Fixme add client mapping command
-
+	# FixMe add client mapping command
 	$class->SUPER::initPlugin();
 }
 

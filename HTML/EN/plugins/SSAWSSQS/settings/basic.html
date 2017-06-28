@@ -6,20 +6,32 @@
 [% END %]
 	
 [% IF prefs %]
-	[% WRAPPER settingSection title ="PLUGIN_SSAWSSQS_PREF_MANUAL" desc="PLUGIN_SSAWSSQS_PREF_MANUAL" %]
+	[% WRAPPER settingSection %]
 		[%- FOREACH thispref = prefs -%]
 			[% USE String (thispref.key) %]
         		[% uk = String.upper %]
 			[%- NEXT IF NOT thispref.key.match('pref_manual_') -%]
 			[% WRAPPER settingGroup title="PLUGIN_SSAWSSQS_" _ uk desc="PLUGIN_SSAWSSQS_" _ uk _ "_HELP" %]
 				[% IF thispref.key.match('awss') %]
-				 <input type="password" class="stdedit" name="[% thispref.key %]" id="[% thispref.key %]" value="[% thispref.value %]" size="64">
+				 <input type="password" class="stdedit" name="[% thispref.key %]" id="[% thispref.key %]" value="[% thispref.value %]" size="42">
 
 				[% ELSE %]
 				 <input type="text" class="stdedit" name="[% thispref.key %]" id="[% thispref.key %]" value="[% thispref.value %]" size="64">
 				[% END %]
 			[% END %]
 		[%- END %]
+	[% END %]
+	[% WRAPPER settingSection %]
+		[% WRAPPER settingGroup title="PLUGIN_SSAWSSQS_CLIENTS" desc="PLUGIN_SSAWSSQS_CLIENTS_DESC" %]
+			<br/>
+			<input type="text" class="stdedit" value="[% "PLUGIN_SSAWSSQS_CLIENTS_AWSA" | string %]" size="21" disabled/>
+			<input type="text" class="stdedit" value="[% "PLUGIN_SSAWSSQS_CLIENTS_SENDQ" | string %]" size="64" disabled/>
+			[% FOREACH entry = prefs.awsc %]
+				[% # could use different names and we would get named prefs rather than array size 2 %]
+				<br/><input type="text" class="stdedit" name="pref_awsc[% loop.index %]" id="awsc.access[% loop.index %].access" value="[% entry.access %]" size="21" />
+				<input type="text" class="stdedit" name="pref_awsc[% loop.index %]" id="awsc.url[% loop.index %].url" value="[% entry.url %]" size="64" />
+			[% END %]
+		[% END %]
 	[% END %]
 [% END %]
 [% PROCESS settings/footer.html %]

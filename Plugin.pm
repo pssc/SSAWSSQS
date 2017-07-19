@@ -78,7 +78,7 @@ sub onRead() {
 	$log->debug("unpacked onRead Args:" ,Dumper($class));
 	$log->debug("unpacked onRead Args:" ,Dumper($cli));
 	my $msg;
-	my $read = sysread($cli->socket,$msg,8096); #FIXME
+	my $read = sysread($cli->socket,$msg,$pref->rbuffer || 8096);
 	$log->info("Read $read from cli");
 	$log->debug("cli: ",$msg);
 
@@ -171,8 +171,9 @@ sub poster () {
 
 sub jsonCallback {
 	my $http = shift;
-	my $content = $http->content();
+	my $msg = $http->content();
 	my $asid = $http->params('asid');
+	my $class = $http->params('class');
 
 	$log->info("json callback $asid");
 	my $dispatch_rec = $$dispatch{$asid} || $$dispatch{DEFAULT};
@@ -182,12 +183,15 @@ sub jsonCallback {
 	} else {
 		$log->warn("dispatch on json read failed");
 	}
+	$$dispatch_rec{JSON} = undef;
 }
 
 sub jsonErrorCallback {
 	my $http = shift;
 	my $asid = $http->params('asid');
 	$log->error("json error $asid ",$http);
+	my $dispatch_rec = $$dispatch{$asid} || $$dispatch{DEFAULT};
+	$$dispatch_rec{JSON} = undef;
 }
 
 sub poller() {
@@ -199,7 +203,8 @@ sub poller() {
 	# check in queue and Retrieve messages
 	my @msgs = $queue->ReceiveMessageBatch(qw(AttributeName.1) => 'All');
 	foreach my $msg (@msgs) {
-		my $body = $msg->MessageBody()."\n";
+		my $body = $msg->MessageBody();
+		chomp($body);
 		my $sender = '';
 		foreach my $attr (@{$msg->{Attribute}}) {
 			if ($attr->{Name} eq 'SenderId') {
@@ -212,15 +217,16 @@ sub poller() {
 		# dispatch to cli 
 		my $dispatch_rec = $$dispatch{$sender} || $$dispatch{DEFAULT};
 		if (defined $dispatch_rec) {
-			if (/^{.*}$/) { # meth slim?
-				if (defined $dispatch_rec{JSON}) {
+			if ($body =~ /^{.*}$/) { # meth slim?
+				if (defined $$dispatch_rec{JSON}) {
 					$log->info("message defered allready porcessing");
 				} else {
-					$dispatch_rec{JSON} = Slim::Networking::SimpleAsyncHTTP->new(	\&jsonCallback,
+					$$dispatch_rec{JSON} = Slim::Networking::SimpleAsyncHTTP->new(	\&jsonCallback,
 													\&jsonErrorCallback,
-													{ asid => $sender }
+													{ asid => $sender,
+													  class => $class }
 												);
-					$dispatch_rec{JSON}->post("http://localhost/jsonprc.js",'Content-Type' => 'application/json-rpc', $body);
+					$dispatch_rec->{JSON}->post("http://localhost:".$prefsServer->port || 9000."/jsonrpc.js",'Content-Type' => 'application/json-rpc', $body);
 					$queue->DeleteMessage($msg);
 				}
 			} else {

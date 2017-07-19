@@ -11,6 +11,7 @@ use Slim::Networking::Async;
 use Amazon::SQS::Simple;
 use Data::Dumper;
 use Time::HiRes;
+use Slim::Networking::SimpleAsyncHTTP;
 
 use Plugins::SSAWSSQS::Settings;
 
@@ -77,7 +78,7 @@ sub onRead() {
 	$log->debug("unpacked onRead Args:" ,Dumper($class));
 	$log->debug("unpacked onRead Args:" ,Dumper($cli));
 	my $msg;
-	my $read = sysread($cli->socket,$msg,8096);
+	my $read = sysread($cli->socket,$msg,8096); #FIXME
 	$log->info("Read $read from cli");
 	$log->debug("cli: ",$msg);
 
@@ -168,6 +169,27 @@ sub poster () {
 	#return Slim::Utils::Timers::setTimer($class, Time::HiRes::time() + $deltat, \&poller,$queue,$deltat);
 }
 
+sub jsonCallback {
+	my $http = shift;
+	my $content = $http->content();
+	my $asid = $http->params('asid');
+
+	$log->info("json callback $asid");
+	my $dispatch_rec = $$dispatch{$asid} || $$dispatch{DEFAULT};
+	if (defined $dispatch_rec) {
+		$log->info("Dispatch for ",$asid," to ",$dispatch_rec->{SEND});
+		$class->poster($dispatch_rec->{SEND},$msg);
+	} else {
+		$log->warn("dispatch on json read failed");
+	}
+}
+
+sub jsonErrorCallback {
+	my $http = shift;
+	my $asid = $http->params('asid');
+	$log->error("json error $asid ",$http);
+}
+
 sub poller() {
 	my $class = shift;
 	my $queue = shift;
@@ -190,8 +212,21 @@ sub poller() {
 		# dispatch to cli 
 		my $dispatch_rec = $$dispatch{$sender} || $$dispatch{DEFAULT};
 		if (defined $dispatch_rec) {
-			$dispatch_rec->{CLI}->write_async({onRead =>\&onRead,passthrough=>[$class,$dispatch_rec->{ASID}],content_ref => \$body, Timeout=>45});
-			$queue->DeleteMessage($msg);
+			if (/^{.*}$/) { # meth slim?
+				if (defined $dispatch_rec{JSON}) {
+					$log->info("message defered allready porcessing");
+				} else {
+					$dispatch_rec{JSON} = Slim::Networking::SimpleAsyncHTTP->new(	\&jsonCallback,
+													\&jsonErrorCallback,
+													{ asid => $sender }
+												);
+					$dispatch_rec{JSON}->post("http://localhost/jsonprc.js",'Content-Type' => 'application/json-rpc', $body);
+					$queue->DeleteMessage($msg);
+				}
+			} else {
+				$dispatch_rec->{CLI}->write_async({onRead =>\&onRead,passthrough=>[$class,$dispatch_rec->{ASID}],content_ref => \$body, Timeout=>45});
+				$queue->DeleteMessage($msg);
+			}
 			if ($#poll_progression < 0) {
 				$deltat = $prefs->poll_lower || $poll_lower;
 			} else {

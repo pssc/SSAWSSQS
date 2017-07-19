@@ -35,10 +35,10 @@ PLUGIN_SSAWSSQS_CLIENTS
 	EN	Client Send Queues
 
 PLUGIN_SSAWSSQS_CLIENTS_DESC
-	EN	Out bound messages for the given AWS ID will be sent to the matching queue
+	EN	Out bound messages for the given ID will be sent to the matching queue
 
-PLUGIN_SSAWSSQS_CLIENTS_AWSA
-	EN	Client AWS Access ID
+PLUGIN_SSAWSSQS_CLIENTS_SENDERID
+	EN	Sender ID(IAM UserId)
 
 PLUGIN_SSAWSSQS_CLIENTS_SENDQ
 	EN	Client Recive Queue URL to send on for given ID

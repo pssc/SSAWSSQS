@@ -48,17 +48,17 @@ sub handler {
 		$paramRef->{pref_awsc} = [] if (not defined $paramRef->{awsc});
 		for (my $i = 0; defined $paramRef->{"pref_awsc$i"}; $i++) {
                         if (my $a = $paramRef->{"pref_awsc$i"}) {
-				push @{$paramRef->{pref_awsc}}, { access  => $$a[0] , url =>$$a[1] } if ($$a[0] ne "" || $$a[1] ne "");
+				push @{$paramRef->{pref_awsc}}, { asid => $$a[0] , url =>$$a[1] } if ($$a[0] ne "" || $$a[1] ne "");
 			}
                 }
-		push @{$paramRef->{pref_awsc}}, { access  => '', url =>''};
+		push @{$paramRef->{pref_awsc}}, { asid => '', url => ''};
 	}
 	$log->debug(Dumper($client,$paramRef));
 	return $class->SUPER::handler($client, $paramRef);
 }
 
 #
-# awsc -> @ { access => , url => }
+# awsc -> @ { asid => , url => }
 #
 
 sub prefs {

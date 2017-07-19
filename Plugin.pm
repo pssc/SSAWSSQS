@@ -47,6 +47,8 @@ sub initPlugin {
 	Plugins::SSAWSSQS::Settings->new;
 	#$log = $Plugins::SSAWSSQS::Settings::log;
 
+	#FIXME setting callback?
+
 	# Plugin setup called after other plugins setup and ready we need cli up
 	Slim::Utils::Timers::setTimer($class, Time::HiRes::time(), \&setup);
 
@@ -56,13 +58,13 @@ sub initPlugin {
 
 # on error... restup flag connected?
 sub onConnect() {
-	#passthrough => [$class,$awsa,$cli,$send],
+	#passthrough => [$class,$asid,$cli,$send],
 	my $class = shift;
-	my $awsa = shift;
+	my $asid = shift;
 	my $cli = shift;
 	my $send = shift;
-	$log->info("Connected ",$awsa," out to ",$send," via cli ",$cli->socket);
-	$$dispatch{$awsa} = { AWSA => $awsa, SEND => $send, CLI => $cli };
+	$log->info("Connected ",$asid," out to ",$send," via cli ",$cli->socket);
+	$$dispatch{$asid} = { ASID => $asid, SEND => $send, CLI => $cli };
 }
 
 sub onRead() {
@@ -70,7 +72,7 @@ sub onRead() {
 	my $cli = shift; #cli..
 	# passthrough
 	my $class = shift;
-	my $awsa = shift;
+	my $asid = shift;
 	# read message from cli
 	$log->debug("unpacked onRead Args:" ,Dumper($class));
 	$log->debug("unpacked onRead Args:" ,Dumper($cli));
@@ -79,9 +81,9 @@ sub onRead() {
 	$log->info("Read $read from cli");
 	$log->debug("cli: ",$msg);
 
-	my $dispatch_rec = $$dispatch{$awsa} || $$dispatch{$prefs->manual_awsa};
+	my $dispatch_rec = $$dispatch{$asid} || $$dispatch{DEFAULT};
 	if (defined $dispatch_rec) {
-		$log->info("Dispatch for ",$awsa," to ",$dispatch_rec->{SEND});
+		$log->info("Dispatch for ",$asid," to ",$dispatch_rec->{SEND});
 		$class->poster($dispatch_rec->{SEND},$msg);
 	} else {
 		$log->warn("dispatch on cli read failed");
@@ -90,7 +92,20 @@ sub onRead() {
 
 sub setup {
 	my $class = shift;
+	$class->setup_from_settings();
+
+	$log->info("Pumping first recive queue poller");
+	return $class->poller($recv);
+}
+
+sub setup_from_settings {
+	my $class = shift;
+	# FIXME  refresh prefs
+	my $prefsServer = preferences('server');
+	$prefs = preferences($cat);
+	$log->debug(Dumper($prefs));
 	# FIXME asure prefs
+
 	# Create an SQS object
 	$log->info("Using AWS Account: ",$prefs->manual_awsa);
 	$log->debug("Using AWS Secret: ",substr($prefs->manual_awss,-10,10,"XXXXXXXXXX"));
@@ -100,27 +115,27 @@ sub setup {
 	$recv = $sqs->GetQueue($prefs->manual_recv);
 
 	$log->info("Defualt send queue client mapping and cli connection");
-	$class->setup_queue_cli_setup($prefs->manual_send,$prefs->manual_awsa);
+	$class->setup_queue_cli_dispatch($prefs->manual_send,'DEFAULT',$prefsServer->cliport || 9090);
 
 	$log->info("Addional send queues client mappings and cli connections");
-	# from prefs FIXME
-
-	$log->info("Pumping first recive queue poller");
-	return $class->poller($recv);
+	if (defined $prefs->get('awsc')) {
+		foreach my $i (@{$prefs->get('awsc')}) {
+			$class->setup_queue_cli_dispatch($$i{url},$$i{asid},$$i{port} || $prefsServer->cliport || 9090) if ($$i{asid} ne "");;
+		}
+	}
 }
 
-sub setup_queue_cli_setup {
-	my ($class,$sendq,$awsa) = @_;
-	my $prefsServer = preferences('server');
+sub setup_queue_cli_dispatch {
+	my ($class,$sendq,$asid,$port) = @_;
 	# default q and client q's
-	$log->info("Using AWS Account: ",$awsa, "Mapping to ",$sendq);
+	$log->info("Using AWS SenderId: ",$asid, " Mapping to ",$sendq);
 	my $send = $sqs->GetQueue($sendq);
 	my $cli = Slim::Networking::Async->new;
 	$cli->connect({
                         Host => '127.0.0.1', # $pref || ...
-                        PeerPort =>  $prefsServer->cliport || 9090,
+                        PeerPort =>  $port,
 			onConnect => \&onConnect,
-			passthrough => [$class,$awsa,$cli,$send],
+			passthrough => [$class,$asid,$cli,$send],
 			Timeout => $prefs->timeout || 30,
         });
 }
@@ -173,9 +188,9 @@ sub poller() {
 			}
 		}
 		# dispatch to cli 
-		my $dispatch_rec = $$dispatch{$sender} || $$dispatch{$prefs->manual_awsa};
+		my $dispatch_rec = $$dispatch{$sender} || $$dispatch{DEFAULT};
 		if (defined $dispatch_rec) {
-			$dispatch_rec->{CLI}->write_async({onRead =>\&onRead,passthrough=>[$class,$dispatch_rec->{AWSA}],content_ref => \$body, Timeout=>45});
+			$dispatch_rec->{CLI}->write_async({onRead =>\&onRead,passthrough=>[$class,$dispatch_rec->{ASID}],content_ref => \$body, Timeout=>45});
 			$queue->DeleteMessage($msg);
 			if ($#poll_progression < 0) {
 				$deltat = $prefs->poll_lower || $poll_lower;

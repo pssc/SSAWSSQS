@@ -8,10 +8,11 @@ use Slim::Utils::Strings qw (string);
 use Slim::Utils::Misc;
 use Slim::Utils::Prefs;
 use Slim::Networking::Async;
+use Slim::Networking::SimpleAsyncHTTP;
+
 use Amazon::SQS::Simple;
 use Data::Dumper;
 use Time::HiRes;
-use Slim::Networking::SimpleAsyncHTTP;
 
 use Plugins::SSAWSSQS::Settings;
 
@@ -31,6 +32,7 @@ my $log  = Slim::Utils::Log->addLogCategory({
 sub getDisplayName { $plugt; }
 
 my $prefs;
+my $prefsServer;
 my $sqs;
 my $recv;
 my $dispatch = {};
@@ -78,7 +80,7 @@ sub onRead() {
 	$log->debug("unpacked onRead Args:" ,Dumper($class));
 	$log->debug("unpacked onRead Args:" ,Dumper($cli));
 	my $msg;
-	my $read = sysread($cli->socket,$msg,$pref->rbuffer || 8096);
+	my $read = sysread($cli->socket,$msg,($prefs->rbuffer || 8096));
 	$log->info("Read $read from cli");
 	$log->debug("cli: ",$msg);
 
@@ -102,7 +104,7 @@ sub setup {
 sub setup_from_settings {
 	my $class = shift;
 	# FIXME  refresh prefs
-	my $prefsServer = preferences('server');
+	$prefsServer = preferences('server');
 	$prefs = preferences($cat);
 	$log->debug(Dumper($prefs));
 	# FIXME asure prefs
@@ -150,13 +152,13 @@ sub poster () {
 	my $count = shift|| $prefs->retrys || 3;
 
 	if (not defined $gid) {
-		$gid = "SlimServer";
+		$gid = "SlimServer:".$prefsServer->server_uuid;
 	}
-	$log->info("MessageGroupId => $gid, MessageDeduplicationId => $gid.$time");
+	$log->info("MessageGroupId => $gid, MessageDeduplicationId => $time");
 	$log->debug("Message: ",$msg);
 	foreach my $try (1..$count) {
 		eval {
-			$queue->SendMessage($msg,MessageGroupId => $gid,MessageDeduplicationId => $gid.'.'.$time);
+			$queue->SendMessage($msg,MessageGroupId => $gid,MessageDeduplicationId => $time);
 		};
 		if ($@ && $@ !~ / Forbidden 403/) {
 			$log->warn("Retry ",$queue," ",$@);
@@ -188,9 +190,11 @@ sub jsonCallback {
 
 sub jsonErrorCallback {
 	my $http = shift;
+	my $error = shift;
 	my $asid = $http->params('asid');
-	$log->error("json error $asid ",$http);
+	$log->error("json error $asid ",$error);
 	my $dispatch_rec = $$dispatch{$asid} || $$dispatch{DEFAULT};
+	# Send error?
 	$$dispatch_rec{JSON} = undef;
 }
 
@@ -217,6 +221,7 @@ sub poller() {
 		# dispatch to cli 
 		my $dispatch_rec = $$dispatch{$sender} || $$dispatch{DEFAULT};
 		if (defined $dispatch_rec) {
+			$prefsServer = preferences('server');
 			if ($body =~ /^{.*}$/) { # meth slim?
 				if (defined $$dispatch_rec{JSON}) {
 					$log->info("message defered allready porcessing");
@@ -226,7 +231,7 @@ sub poller() {
 													{ asid => $sender,
 													  class => $class }
 												);
-					$dispatch_rec->{JSON}->post("http://localhost:".$prefsServer->port || 9000."/jsonrpc.js",'Content-Type' => 'application/json-rpc', $body);
+					$dispatch_rec->{JSON}->post("http://localhost:".($prefsServer->port || 9000)."/jsonrpc.js",'Content-Type' => 'application/json-rpc', $body);
 					$queue->DeleteMessage($msg);
 				}
 			} else {
@@ -240,7 +245,7 @@ sub poller() {
 				$deltat = $poll_progression[$poll_index];
 			}
 		} else {
-			$log->warn("CLI dispatch on queue read to cli failed for ",$sender);
+			$log->warn("dispatch on queue read failed for ",$sender);
 		}
 	}
 	if ($#msgs < 0 && $deltat < $poll_upper) {
